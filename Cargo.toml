@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    'exotic',
+    'exotic_macro',
+    'tests',
+]

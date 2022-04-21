@@ -1,0 +1,18 @@
+[package]
+name = "exotic_macro"
+version = "0.2.0"
+edition = "2021"
+description = "proc-macros for exotic"
+license = "BSD-2-Clause"
+repository = 'https://github.com/unic0rn9k/exotic'
+readme = '../README.md'
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn         = "1.0.60"
+ron         = "0.6.4"
+serde       = "1.0.123"
+quote       = "1.0.9"
+proc-macro2 = "1.0.24"

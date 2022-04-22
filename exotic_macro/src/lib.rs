@@ -104,6 +104,7 @@ fn predict(model: &Model) -> TokenStream2 {
     let Model {
         float_type,
         input_len,
+        output_len,
         layers,
         cache_len,
         ..
@@ -145,6 +146,8 @@ fn predict(model: &Model) -> TokenStream2 {
         })
         .collect();
 
+    let buffered_ret = format_ident!("l{}", layers.0.len() - 1);
+
     quote! {
         fn predict(&mut self, i: impl exotic::slas::prelude::StaticVec<#float_type, #input_len>) -> Result<#output_type>{
             #(
@@ -154,12 +157,13 @@ fn predict(model: &Model) -> TokenStream2 {
             Ok(#ret)
         }
 
-        fn predict_buffered(&mut self, i: impl exotic::slas::prelude::StaticVec<#float_type, #input_len>, o: &mut impl StaticVec<#float_type, #cache_len>) -> Result<()>{
+        fn predict_buffered(&mut self, i: impl exotic::slas::prelude::StaticVec<#float_type, #input_len>, o: &mut impl StaticVec<#float_type, #cache_len>)
+        -> Result<StaticVecRef::<#float_type, #output_len>>{
             #(
-                let #layer_names = self.#layer_names.predict(#layer_inputs)?;
-                **(#buffer_output) = #layer_names;
+                **(#buffer_output) = self.#layer_names.predict(#layer_inputs)?;
+                let #layer_names = #buffer_output;
             )*
-            Ok(())
+            Ok(#buffered_ret)
         }
     }
 }
@@ -233,6 +237,8 @@ pub fn model(input: TokenStream) -> TokenStream {
     let derive = model.derive.clone();
     let layer_types = model.layers.0.clone();
     let layer_init = model.layers.1.clone();
+    let float_type = model.float_type.clone();
+    let cache_len = model.cache_len.clone();
 
     let def = quote! {
         #[derive(#(#derive),*)]
@@ -256,6 +262,10 @@ pub fn model(input: TokenStream) -> TokenStream {
                 Self{#(
                     #layer_names : #layer_init,
                 )*}
+            }
+
+            unsafe fn uninit_cache() -> [#float_type; #cache_len]{
+                unsafe{ MaybeUninit::uninit().assume_init() }
             }
         }
     };

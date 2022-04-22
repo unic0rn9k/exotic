@@ -1,5 +1,3 @@
-#![feature(generic_arg_infer)]
-
 #[cfg(test)]
 mod test {
     use exotic::prelude::*;
@@ -74,11 +72,10 @@ mod test {
 
         let y = moo![f32: 0, 1];
         let i = moo![f32: 0..4];
-        let mut buffer: [f32; _] = unsafe { MaybeUninit::uninit().assume_init() };
+        let mut buffer = unsafe { MacroNet::uninit_cache() };
 
         for _ in 0..5000 {
-            let o = net.predict(i)?;
-            net.predict_buffered(i, &mut buffer)?;
+            let o = net.predict_buffered(i, &mut buffer)?;
 
             let dy = moo![|n| -> f32 { o[n] - y[n] }; 2];
 

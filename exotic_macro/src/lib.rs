@@ -105,6 +105,7 @@ fn predict(model: &Model) -> TokenStream2 {
         float_type,
         input_len,
         layers,
+        cache_len,
         ..
     } = model;
 
@@ -134,6 +135,10 @@ fn predict(model: &Model) -> TokenStream2 {
 
             Ok(#ret)
         }
+
+        fn predict_buffered(&mut self, i: impl exotic::slas::prelude::StaticVec<#float_type, #input_len>, o: MutStaticVecRef<#float_type, #cache_len>){
+            todo!()
+        }
     }
 }
 
@@ -147,19 +152,24 @@ fn backprop(model: &Model) -> TokenStream2 {
         ..
     } = model;
 
-    let output_type = layers.0.last().unwrap();
-    let output_type = quote! { <#output_type as exotic::LayerTy>::Gradient };
-
-    let layer_names = layer_names(layers.0.len());
+    let layer_names: Vec<_> = layer_names(layers.0.len()).iter().cloned().rev().collect();
 
     let layer_inputs: Vec<_> = (0..layers.0.len())
+        .rev()
         .map(|n| {
-            if n == 0 {
-                format_ident!("i")
-            } else {
-                let n = n - 1;
-                format_ident!("l{n}")
-            }
+            let ofset = if n == 0{quote!{0}}else{
+                let lt: Vec<_> = (0..n-1)
+                    .map(|n| {
+                        let t = &layers.0[n];
+                        quote! {#t::O_LEN}
+                    })
+                    .collect();
+
+                quote! {{#(#lt +)* #input_len}}
+            };
+
+            let layer = &layers.0[n];
+            quote! { unsafe{ std::mem::transmute::<_, StaticVecRef::<#float_type, {#layer::I_LEN}>>(i.as_mut_ptr().add(#ofset)) } }
         })
         .collect();
 
@@ -169,16 +179,21 @@ fn backprop(model: &Model) -> TokenStream2 {
             if n == layers.0.len() - 1 {
                 format_ident!("gradient")
             } else {
-                format_ident!("l{n}_delta")
+                let n = n + 1;
+                format_ident!("l{n}")
             }
         })
         .collect();
 
-    let ret = format_ident!("l{}_delta", layers.0.len() - 1);
+    let ret = format_ident!("l0");
 
     quote! {
-        fn backpropagate(&mut self, i: impl exotic::slas::prelude::StaticVec<#float_type, #cache_len>, gradient: impl exotic::slas::prelude::StaticVec<#float_type, #output_len>) -> Result<#output_type>{
-            todo!()
+        fn backpropagate(&mut self, mut i: impl exotic::slas::prelude::StaticVec<#float_type, #cache_len>, gradient: impl exotic::slas::prelude::StaticVec<#float_type, #output_len>) -> Result<[#float_type; #input_len]>{
+            #(
+                let #layer_names = self.#layer_names.backpropagate(#layer_inputs, #layer_deltas)?;
+            )*
+
+            Ok(#ret)
         }
     }
 }

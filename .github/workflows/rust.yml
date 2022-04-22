@@ -1,0 +1,56 @@
+name: Tests
+
+on:
+  push:
+    branches: [ master ]
+    paths:
+      - build.rs
+      - src/**
+      - tests/src/**
+      - .github/workflows/**
+
+  pull_request:
+    branches: [ master ]
+    paths:
+      - build.rs
+      - src/**
+      - tests/src/**
+      - .github/workflows/**
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Install nightly toolchain
+      run: rustup toolchain install nightly
+    - name: Install blis
+      run: sudo apt install libblis-dev
+    - name: Run tests
+      run: cargo +nightly t
+
+  coverage:
+    name: Code coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      - name: Install nightly toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - name: Install blis
+        run: sudo apt install libblis-dev
+      - name: Run cargo-tarpaulin
+        uses: actions-rs/tarpaulin@v0.1
+        with:
+          args: '--ignore-tests --out Lcov --output-dir target/tarpaulin'
+      - name: Upload to Coveralls
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: './target/tarpaulin/lcov.info'

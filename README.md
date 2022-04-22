@@ -14,3 +14,6 @@
 
 Are you tired of modern deep learning frameworks making you choose between performance and being eassy to work with?
 Exotic might just be what you're looking for!
+
+
+Built with [unic0rn9k/slas](https://github.com/unic0rn9k/slas) (It might be a good idea to take a look at the installation section in the slas readme)

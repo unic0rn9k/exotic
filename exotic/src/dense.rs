@@ -100,38 +100,3 @@ macro_rules! impl_dense {
 
 impl_dense!(f32);
 impl_dense!(f64);
-
-#[test]
-fn basic() {
-    use slas::prelude::*;
-    use slas_backend::*;
-
-    let mut net = DenseLayer::<f32, Blas, 2, 3>::random(0.09);
-    let target = moo![f32: 1, 2, 3];
-    let i = moo![f32: 2, 4];
-
-    for _ in 0..1000 {
-        let mut delta = net.predict(i).unwrap();
-
-        delta
-            .iter_mut()
-            .zip(target.iter())
-            .for_each(|(d, y)| *d = *d - *y);
-
-        net.backpropagate(i, delta).unwrap();
-    }
-
-    let o = net.predict(i).unwrap();
-
-    let cost = o
-        .iter()
-        .zip(target.iter())
-        .map(|(o, y)| (o - y).powi_(2))
-        .sum::<f32>()
-        .sqrt_();
-
-    assert!(
-        cost < 0.1,
-        "cost: {cost}, found: {o:?}, expected: {target:?}"
-    );
-}

@@ -1,14 +1,9 @@
+use crate::*;
 use slas::backends::operations::MatrixMul;
 
-use crate::*;
-
 #[derive(Clone, Copy)]
-pub struct DenseLayer<
-    T: Float,
-    B: Backend<T> + DotProduct<T, DotOutput = T>,
-    const I_LEN: usize,
-    const O_LEN: usize,
-> where
+pub struct DenseLayer<T: Float, B: Backend<T>, const I_LEN: usize, const O_LEN: usize>
+where
     [(); O_LEN * I_LEN]:,
 {
     pub weights: [T; O_LEN * I_LEN],
@@ -17,12 +12,8 @@ pub struct DenseLayer<
     backend: B,
 }
 
-impl<
-        T: Float + Display,
-        B: Backend<T> + DotProduct<T, DotOutput = T>,
-        const I_LEN: usize,
-        const O_LEN: usize,
-    > DenseLayer<T, B, I_LEN, O_LEN>
+impl<T: Float + Display, B: Backend<T>, const I_LEN: usize, const O_LEN: usize>
+    DenseLayer<T, B, I_LEN, O_LEN>
 where
     [(); O_LEN * I_LEN]:,
 {
@@ -40,12 +31,8 @@ where
     }
 }
 
-impl<
-        T: Float,
-        B: Backend<T> + DotProduct<T, DotOutput = T>,
-        const I_LEN: usize,
-        const O_LEN: usize,
-    > LayerTy for DenseLayer<T, B, I_LEN, O_LEN>
+impl<T: Float, B: Backend<T>, const I_LEN: usize, const O_LEN: usize> LayerTy
+    for DenseLayer<T, B, I_LEN, O_LEN>
 where
     [(); O_LEN * I_LEN]:,
 {
@@ -55,11 +42,8 @@ where
 
 macro_rules! impl_dense {
     ($T: ty) => {
-        impl<
-                B: Backend<$T> + DotProduct<$T, DotOutput = $T> + MatrixMul<$T>,
-                const I_LEN: usize,
-                const O_LEN: usize,
-            > Layer<$T, I_LEN, O_LEN> for DenseLayer<$T, B, I_LEN, O_LEN>
+        impl<B: Backend<$T> + MatrixMul<$T>, const I_LEN: usize, const O_LEN: usize>
+            Layer<$T, I_LEN, O_LEN> for DenseLayer<$T, B, I_LEN, O_LEN>
         where
             [(); O_LEN * I_LEN]:,
         {

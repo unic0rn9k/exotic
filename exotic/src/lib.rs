@@ -11,7 +11,7 @@ fn random<T: Float>() -> T {
     T::from_f64(rand::random())
 }
 
-use slas::{backends::operations::DotProduct, prelude::*};
+use slas::prelude::*;
 
 /// This trait needs to be implemented to expose needed types to the proc macro, without knowing
 /// the input and output size of the layer.

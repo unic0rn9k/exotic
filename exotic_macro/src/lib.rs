@@ -127,6 +127,24 @@ fn predict(model: &Model) -> TokenStream2 {
 
     let ret = format_ident!("l{}", layers.0.len() - 1);
 
+    let buffer_output: Vec<_> = (0..layers.0.len())
+        .map(|n| {
+            let ofset = if n == 0{quote!{0}}else{
+                let lt: Vec<_> = (0..n-1)
+                    .map(|n| {
+                        let t = &layers.0[n];
+                        quote! {#t::O_LEN}
+                    })
+                    .collect();
+
+                quote! {{#(#lt +)* #input_len}}
+            };
+
+            let layer = &layers.0[n];
+            quote! { unsafe{ std::mem::transmute::<_, MutStaticVecRef::<#float_type, {#layer::O_LEN}>>(o.as_mut_ptr().add(#ofset)) } }
+        })
+        .collect();
+
     quote! {
         fn predict(&mut self, i: impl exotic::slas::prelude::StaticVec<#float_type, #input_len>) -> Result<#output_type>{
             #(
@@ -136,8 +154,12 @@ fn predict(model: &Model) -> TokenStream2 {
             Ok(#ret)
         }
 
-        fn predict_buffered(&mut self, i: impl exotic::slas::prelude::StaticVec<#float_type, #input_len>, o: MutStaticVecRef<#float_type, #cache_len>){
-            todo!()
+        fn predict_buffered(&mut self, i: impl exotic::slas::prelude::StaticVec<#float_type, #input_len>, o: &mut impl StaticVec<#float_type, #cache_len>) -> Result<()>{
+            #(
+                let #layer_names = self.#layer_names.predict(#layer_inputs)?;
+                **(#buffer_output) = #layer_names;
+            )*
+            Ok(())
         }
     }
 }

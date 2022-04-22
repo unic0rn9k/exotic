@@ -1,26 +1,12 @@
-use exotic::prelude::*;
-use exotic_macro::*;
-
-use slas_backend::*;
-use std::marker::PhantomData;
-
-model! {(
-    derive: [Copy, Clone],
-    name: "MacroNet",
-    layers: [
-        ("DenseLayer::<f32, Blas, 4, 2>", "DenseLayer::random(0.01)"),
-        ("Softmax::<f32, 2>", "Softmax(PhantomData)")
-    ],
-    float_type: "f32",
-    input_len: 4,
-    output_len: 2
-)}
+#![feature(generic_arg_infer)]
 
 #[cfg(test)]
 mod test {
+    use exotic::prelude::*;
+    use exotic_macro::*;
+    use slas_backend::*;
+    use std::marker::PhantomData;
     use std::mem::MaybeUninit;
-
-    use crate::*;
 
     #[test]
     fn basic_with_no_macro() {
@@ -49,12 +35,12 @@ mod test {
             l1: Softmax(PhantomData),
         };
 
-        let y = moo![f32: 0., 1.];
+        let y = moo![f32: 0, 1];
         let i = moo![f32: 0..4];
 
         for _ in 0..5000 {
             let o = net.predict(&i);
-            let dy = moo![|n|->f32 { o[n] - y[n] }; 2];
+            let dy = moo![|n| -> f32 { o[n] - y[n] }; 2];
             net.backpropagate(&i, dy.slice());
         }
 
@@ -71,21 +57,35 @@ mod test {
     }
 
     #[test]
-    fn basic_with_macro() {
-        let mut net = crate::MacroNet::new();
+    fn basic_with_macro() -> Result<()> {
+        model! {(
+            derive: [Copy, Clone],
+            name: "MacroNet",
+            layers: [
+                ("DenseLayer::<f32, Blas, 4, 2>", "DenseLayer::random(0.1)"),
+                ("Softmax::<f32, 2>", "Softmax(PhantomData)")
+            ],
+            float_type: "f32",
+            input_len: 4,
+            output_len: 2
+        )}
 
-        let y = moo![f32: 0., 1.];
+        let mut net = MacroNet::new();
+
+        let y = moo![f32: 0, 1];
         let i = moo![f32: 0..4];
-        let mut buffer = unsafe { MaybeUninit::uninit().assume_init() };
+        let mut buffer: [f32; _] = unsafe { MaybeUninit::uninit().assume_init() };
 
         for _ in 0..5000 {
-            let o = net.predict(i).unwrap();
-            net.predict_buffered(i, &mut buffer);
-            let dy = moo![|n|->f32 { o[n] - y[n] }; 2];
-            net.backpropagate(&buffer, dy.slice());
+            let o = net.predict(i)?;
+            net.predict_buffered(i, &mut buffer)?;
+
+            let dy = moo![|n| -> f32 { o[n] - y[n] }; 2];
+
+            net.backpropagate(&mut buffer, dy.slice())?;
         }
 
-        let o = net.predict(&i).unwrap();
+        let o = net.predict(&i)?;
         let cost = o
             .moo_ref()
             .iter()
@@ -95,5 +95,7 @@ mod test {
             .abs();
 
         assert!(cost < 0.0001, "Found {o:?}, expecteed {y:?} (cost: {cost})");
+
+        Ok(())
     }
 }

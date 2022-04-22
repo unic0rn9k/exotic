@@ -28,9 +28,7 @@ where
 {
     pub fn random(lr: T) -> Self {
         let xavier = || -> T {
-            (random::<T>() - num!(0.5))
-                * num!(2)
-                * T::from_f64(2f64 / (I_LEN + O_LEN) as f64).sqrt_()
+            (random::<T>() - num!(0.5)) * (T::_2 / (T::from_f64((O_LEN + I_LEN) as f64)))
         };
 
         let mut buffer: Self = unsafe { std::mem::MaybeUninit::uninit().assume_init() };

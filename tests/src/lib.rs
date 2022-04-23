@@ -36,7 +36,7 @@ mod test {
 
         for _ in 0..5000 {
             let o = net.predict(&i);
-            let dy = moo![|n| -> f32 { o[n] - y[n] }; 2];
+            let dy = moo![|n| o[n] - y[n]; 2];
             net.backpropagate(&i, dy.slice());
         }
 
@@ -73,11 +73,11 @@ mod test {
         let mut buffer = unsafe { MacroNet::uninit_cache() };
 
         for _ in 0..2000 {
-            let o = net.predict_buffered(i, &mut buffer)?;
+            let o = net.predict_buffered(&i, &mut buffer)?;
 
-            let dy = moo![|n| -> f32 { o[n] - y[n] }; 2];
+            let dy = moo![|n| o[n] - y[n]; 2];
 
-            net.backpropagate(&mut buffer, dy.slice())?;
+            net.backpropagate(&mut buffer, dy)?;
         }
 
         let o = net.predict(&i)?;

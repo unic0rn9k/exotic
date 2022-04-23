@@ -46,14 +46,15 @@ let i = moo![f32: 0..4];
 let mut buffer = unsafe { ExampleNet::uninit_cache() };
 
 for _ in 0..2000 {
-    let o = net.predict_buffered(i, &mut buffer)?;
+    let o = net.predict_buffered(&i, &mut buffer)?;
 
-    let dy = moo![|n| -> f32 { o[n] - y[n] }; 2];
+    let dy = moo![|n| o[n] - y[n]; 2];
 
-    net.backpropagate(&mut buffer, dy.slice())?;
+    net.backpropagate(&mut buffer, dy)?;
 }
 
-let o = net.predict(&i)?;
+let o = net.predict(i)?;
+
 let cost = o
     .moo_ref()
     .iter()

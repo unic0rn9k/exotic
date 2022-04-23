@@ -19,3 +19,44 @@ Exotic might just be what you're looking for!
 
 
 Built with [unic0rn9k/slas](https://github.com/unic0rn9k/slas) (It might be a good idea to take a look at the installation section in the slas readme)
+
+## Basic example
+
+``` rust
+model! {(
+    derive: [Copy, Clone],
+    name: "ExampleNet",
+    layers: [
+        ("DenseLayer::<f32, Blas, 4, 2>", "DenseLayer::random(0.1)"),
+        ("Softmax::<f32, 2>", "Softmax(PhantomData)")
+    ],
+    float_type: "f32",
+    input_len: 4,
+    output_len: 2
+)}
+
+let mut net = ExampleNet::new();
+
+let y = moo![f32: 0, 1];
+let i = moo![f32: 0..4];
+let mut buffer = unsafe { ExampleNet::uninit_cache() };
+
+for _ in 0..2000 {
+    let o = net.predict_buffered(i, &mut buffer)?;
+
+    let dy = moo![|n| -> f32 { o[n] - y[n] }; 2];
+
+    net.backpropagate(&mut buffer, dy.slice())?;
+}
+
+let o = net.predict(&i)?;
+let cost = o
+    .moo_ref()
+    .iter()
+    .zip(y.iter())
+    .map(|(o, y)| (o - y).powi_(2))
+    .sum::<f32>()
+    .abs();
+
+assert!(cost < 0.0001, "Found {o:?}, expecteed {y:?} (cost: {cost})");
+```

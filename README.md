@@ -4,6 +4,8 @@
 
 *Exotical Deep Learning*
 
+<img align="right" src="logo.png" height="150px"/>
+
 [![Crates.io](https://img.shields.io/crates/v/exotic?logo=rust)](https://crates.io/crates/exotic)
 [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/unic0rn9k/exotic/Tests?label=tests&logo=github)](https://github.com/unic0rn9k/exotic/actions/workflows/rust.yml)
 [![Coverage Status](https://coveralls.io/repos/github/unic0rn9k/exotic/badge.svg?branch=master)](https://coveralls.io/github/unic0rn9k/exotic?branch=master)

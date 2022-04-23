@@ -259,13 +259,14 @@ pub fn model(input: TokenStream) -> TokenStream {
             #backprop
 
             fn new() -> Self{
+                fn default<T: Default>()->T{T::default()}
                 Self{#(
                     #layer_names : #layer_init,
                 )*}
             }
 
             unsafe fn uninit_cache() -> [#float_type; #cache_len]{
-                unsafe{ MaybeUninit::uninit().assume_init() }
+                unsafe{ core::mem::MaybeUninit::uninit().assume_init() }
             }
         }
     };

@@ -23,12 +23,16 @@ Built with [unic0rn9k/slas](https://github.com/unic0rn9k/slas) (It might be a go
 ## Basic example
 
 ``` rust
+use exotic::prelude::*;
+use exotic_macro::*;
+use slas_backend::*;
+
 model! {(
     derive: [Copy, Clone],
     name: "ExampleNet",
     layers: [
         ("DenseLayer::<f32, Blas, 4, 2>", "DenseLayer::random(0.1)"),
-        ("Softmax::<f32, 2>", "Softmax(PhantomData)")
+        ("Softmax::<f32, 2>", "default()")
     ],
     float_type: "f32",
     input_len: 4,

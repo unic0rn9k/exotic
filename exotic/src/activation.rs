@@ -21,7 +21,7 @@ use std::marker::PhantomData;
 #[macro_export]
 macro_rules! activation {
     ([$($T: ty),*]: $name: ident = $f: expr, $d: expr $(,)?) => {
-        #[derive(Clone, Copy)]
+        #[derive(Clone, Copy, Default)]
         pub struct $name<T: Float, const LEN: usize>(pub PhantomData<T>);
 
         impl<T: Float, const LEN: usize> LayerTy for $name<T, LEN> {
@@ -100,7 +100,7 @@ activation! {
         |_| 1.,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct Softmax<T: Float, const LEN: usize>(pub PhantomData<T>);
 
 impl<T: Float, const LEN: usize> LayerTy for Softmax<T, LEN> {

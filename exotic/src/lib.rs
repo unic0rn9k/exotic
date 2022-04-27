@@ -1,13 +1,13 @@
 #![allow(incomplete_features)]
 #![feature(generic_const_exprs)]
 
-use std::fmt::Display;
+use std::{fmt::Display, mem::MaybeUninit};
 
 pub use anyhow;
 use anyhow::*;
-use rand;
+pub use rand;
 
-fn random<T: Float>() -> T {
+pub fn random<T: Float>() -> T {
     T::from_f64(rand::random())
 }
 
@@ -35,6 +35,12 @@ where
         i: impl StaticVec<T, I_LEN>,
         gradient: impl StaticVec<T, O_LEN>,
     ) -> Result<Self::Gradient>;
+}
+
+pub fn onehot<T: Float, const LEN: usize>(i: usize) -> [T; LEN] {
+    let mut tmp: [T; LEN] = unsafe { MaybeUninit::zeroed().assume_init() };
+    tmp[i] = num!(1);
+    tmp
 }
 
 #[macro_use]

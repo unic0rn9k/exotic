@@ -93,4 +93,49 @@ mod test {
 
         Ok(())
     }
+
+    #[test]
+    fn basic_long_with_macro() -> Result<()> {
+        model! {(
+            derive: [Copy, Clone],
+            name: "MacroNet",
+            layers: [
+                ("DenseLayer::<f32, Blas, 4, 2>", "DenseLayer::random(0.001)"),
+                ("Tanh::<f32, 2>", "default()"),
+                ("DenseLayer::<f32, Blas, 2, 4>", "DenseLayer::random(0.001)"),
+                ("Tanh::<f32, 4>", "default()")
+            ],
+            float_type: "f32",
+            input_len: 4,
+            output_len: 4
+        )}
+
+        let mut net = MacroNet::new();
+
+        let mut buffer = unsafe { MacroNet::uninit_cache() };
+
+        for epoch in 0..5000 {
+            let o = net.predict_buffered(&moo![f32: epoch % 5, 0, 0, 0], &mut buffer)?;
+
+            let dy = moo![|n| o[n] - ((n%2) * (epoch%5)) as f32 ; 4];
+
+            net.backpropagate(&mut buffer, dy)?;
+        }
+
+        let o = net.predict(moo![f32: 1, 0, 0, 0])?;
+        let cost = o
+            .moo_ref()
+            .iter()
+            .zip(moo![f32: 0, 1, 0, 1].iter())
+            .map(|(o, y)| (o - y).powi_(2))
+            .sum::<f32>()
+            .abs();
+
+        assert!(
+            cost < 0.0001,
+            "Found {o:?}, expecteed [0,1,0,1] (cost: {cost})"
+        );
+
+        Ok(())
+    }
 }

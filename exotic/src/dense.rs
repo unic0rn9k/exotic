@@ -51,9 +51,9 @@ macro_rules! impl_dense {
                 Ok(*self
                     .weights
                     .moo_ref()
-                    .matrix::<B, O_LEN, I_LEN>()
+                    .matrix_ref::<B, O_LEN, I_LEN>()
                     .vector_mul(i.moo_ref())
-                    .moo_owned()
+                    .moo_ref()
                     .add(self.biasies.moo_ref()))
             }
 
@@ -65,7 +65,12 @@ macro_rules! impl_dense {
                 let mut buffer = [num!(0); I_LEN];
                 let gradient = gradient.moo_ref();
                 let input = i.moo_ref();
-                let mut weights = self.weights.mut_moo_ref().matrix::<B, O_LEN, I_LEN>();
+                let mut weights = self
+                    .weights
+                    .mut_moo_ref()
+                    .matrix_mut_ref::<B, O_LEN, I_LEN>();
+
+                //let weights = weights.as_transposed_mut();
 
                 for j in 0..O_LEN {
                     self.biasies[j] -= gradient[j] * self.lr;

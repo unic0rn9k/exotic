@@ -49,7 +49,7 @@ mod test {
             .sum::<f32>()
             .abs();
 
-        assert!(cost < 0.0001, "Found {o:?}, expecteed {y:?} (cost: {cost})");
+        assert!(cost < 0.01, "Found {o:?}, expecteed {y:?} (cost: {cost})");
     }
 
     #[test]
@@ -89,7 +89,7 @@ mod test {
             .sum::<f32>()
             .abs();
 
-        assert!(cost < 0.0001, "Found {o:?}, expecteed {y:?} (cost: {cost})");
+        assert!(cost < 0.01, "Found {o:?}, expecteed {y:?} (cost: {cost})");
 
         Ok(())
     }
@@ -132,7 +132,7 @@ mod test {
             .abs();
 
         assert!(
-            cost < 0.0001,
+            cost < 0.01,
             "Found {o:?}, expecteed [0,1,0,1] (cost: {cost})"
         );
 

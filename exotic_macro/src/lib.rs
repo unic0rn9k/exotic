@@ -142,9 +142,7 @@ fn predict(model: &Model) -> TokenStream2 {
             };
 
             let layer = &layers.0[n];
-            //quote! { unsafe{ std::mem::transmute::<_, MutStaticVecRef::<#float_type, {#layer::O_LEN}>>(o.as_mut_ptr().add(#ofset)) } }
-            quote! { unsafe{ std::mem::transmute::<_, MutStaticVecRef::<#float_type, {#layer::O_LEN}>>(&mut o.mut_moo_ref()[#ofset] as *mut #float_type) } }
-            //quote! { unsafe{ o.mut_static_slice_unchecked::<{#layer::O_LEN}>(#ofset) } }
+            quote! { unsafe{ std::mem::transmute::<_, MutStaticVecRef::<#float_type, {#layer::O_LEN}>>(o.as_mut_ptr().add(#ofset)) } }
         })
         .collect();
 
@@ -197,8 +195,7 @@ fn backprop(model: &Model) -> TokenStream2 {
             };
 
             let layer = &layers.0[n];
-            //quote! { unsafe{ std::mem::transmute::<_, StaticVecRef::<#float_type, {#layer::I_LEN}>>(i.as_mut_ptr().add(#ofset)) } }
-            quote! { unsafe{ std::mem::transmute::<_, StaticVecRef::<#float_type, {#layer::I_LEN}>>(&i.moo_ref()[#ofset] as *const #float_type) } }
+            quote! { unsafe{ std::mem::transmute::<_, StaticVecRef::<#float_type, {#layer::I_LEN}>>(i.as_ptr().add(#ofset)) } }
         })
         .collect();
 

@@ -9,15 +9,25 @@ model! {(
     derive: [],
     name: "Net",
     layers: [
-        ("DenseLayer::<f32, Blas, {28*28}, 15>", "DenseLayer::random(0.01)"),
-        ("Tanh::<f32, 15>", "default()"),
-        ("DenseLayer::<f32, Blas, 15, 10>", "DenseLayer::random(0.01)"),
+        ("DenseLayer::<f32, Blas, {28*28}, 20>", "DenseLayer::random(0.01)"),
+        ("Tanh::<f32, 20>", "default()"),
+        ("DenseLayer::<f32, Blas, 20, 10>", "DenseLayer::random(0.01)"),
         ("Softmax::<f32, 10>", "default()")
     ],
     float_type: "f32",
     input_len: 784,
     output_len: 10
 )}
+
+fn argmax(slice: &[f32]) -> usize {
+    let mut max = 0;
+    for n in 1..slice.len() {
+        if slice[n] > slice[max] {
+            max = n
+        }
+    }
+    max
+}
 
 pub fn main() -> Result<()> {
     let Mnist {
@@ -37,21 +47,27 @@ pub fn main() -> Result<()> {
     let mut net = Net::new();
     let mut buffer = unsafe { Net::uninit_cache() };
 
-    for _ in 0..200000 {
-        let idx = exotic::rand::random::<usize>() % TRN_IMAGES;
+    let mut accuracy = [false; 400];
+
+    for epoch in 0..400000 {
+        net.l0.lr *= 0.99999;
+        net.l2.lr *= 0.99999;
+
+        let idx = epoch % TRN_IMAGES;
 
         let i = unsafe {
-            std::mem::transmute::<_, StaticVecRef<f32, { 28 * 28 }>>(
-                &trn_img[idx * 28 * 28] as *const f32,
-            )
+            trn_img
+                .moo_ref::<{ TRN_IMAGES * 28 * 28 }>()
+                .static_slice_unchecked::<{ 28 * 28 }>(idx * 28 * 28)
         };
-
-        //println!("{:2.2?}", i.matrix::<Blas, 28, 28>());
 
         let o = net.predict_buffered(i, &mut buffer)?;
 
+        // TODO: Find an optimal way to avoid this coping here.
         *unsafe {
-            std::mem::transmute::<_, MutStaticVecRef<f32, { 28 * 28 }>>(&mut buffer[0] as *mut f32)
+            buffer
+                .mut_moo_ref()
+                .mut_static_slice_unchecked::<{ 28 * 28 }>(0)
         } = *i;
 
         let y = onehot::<f32, 10>(trn_lbl[idx] as usize);
@@ -69,18 +85,16 @@ pub fn main() -> Result<()> {
             panic!("cost is nan");
         }
 
-        //if epoch % 100 == 0 {
-        println!(
-            "cost: {cost:.3}, lbl: {}, out: {o:.3?}",
-            trn_lbl[idx] as usize
-        );
-        //}
-        //println!("\n{y:?}");
+        accuracy[epoch % accuracy.len()] = argmax(o.slice()) == trn_lbl[idx] as usize;
 
-        //println!(
-        //    "{:.3?}",
-        //    net.l0.weights.matrix::<Blas, 10, 784>().as_transposed()
-        //);
+        if epoch % 300 == 0 {
+            println!(
+                "accuracy: {:.2}% lr: {:.5}",
+                accuracy.iter().map(|n| *n as u8 as f32).sum::<f32>() / accuracy.len() as f32
+                    * 100.,
+                net.l0.lr
+            );
+        }
 
         net.backpropagate(&buffer, dy)?;
     }

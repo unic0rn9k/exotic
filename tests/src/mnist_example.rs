@@ -39,15 +39,13 @@ pub fn main() -> Result<()> {
         .download_and_extract()
         .finalize();
 
-    let trn_img = trn_img
-        .iter()
-        .map(|n| (*n as f32 / 25.).floor())
-        .collect::<Vec<_>>();
+    let trn_img = trn_img.iter().map(|n| *n as f32 / 255.).collect::<Vec<_>>();
 
     let mut net = Net::new();
     let mut buffer = unsafe { Net::uninit_cache() };
 
     let mut accuracy = [false; 400];
+    let mut cost_sum = 0f32;
 
     for epoch in 0..400000 {
         net.l0.lr *= 0.99999;
@@ -63,7 +61,7 @@ pub fn main() -> Result<()> {
 
         let o = net.predict_buffered(i, &mut buffer)?;
 
-        // TODO: Find an optimal way to avoid this coping here.
+        // TODO: Find an optimal way to avoid copying here.
         *unsafe {
             buffer
                 .mut_moo_ref()
@@ -85,14 +83,17 @@ pub fn main() -> Result<()> {
             panic!("cost is nan");
         }
 
+        cost_sum += cost;
+
         accuracy[epoch % accuracy.len()] = argmax(o.slice()) == trn_lbl[idx] as usize;
 
         if epoch % 300 == 0 {
-            println!(
-                "accuracy: {:.2}% lr: {:.5}",
+            print!(
+                "\raccuracy: {:.2}% lr: {:.5} cost: {:.4?}",
                 accuracy.iter().map(|n| *n as u8 as f32).sum::<f32>() / accuracy.len() as f32
                     * 100.,
-                net.l0.lr
+                net.l0.lr,
+                cost_sum / epoch as f32
             );
         }
 

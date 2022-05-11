@@ -58,6 +58,38 @@ macro_rules! activation {
         //    fn deserialize(&mut self, _: &mut dyn std::iter::Iterator<Item = u8>) {}
         //}
     )*};
+    (T: $name: ident = $f: expr, $d: expr $(,)?) => {
+        #[derive(Clone, Copy, Default)]
+        pub struct $name<T: Float, const LEN: usize>(pub PhantomData<T>);
+
+        impl<T: Float, const LEN: usize> Layer<T, LEN, LEN, LEN> for $name<T, LEN> {
+            type Gradient = [T; LEN];
+
+            fn predict(&mut self, i: impl StaticVec<T, LEN>, buffer: &mut impl StaticVec<T, LEN>) -> Result<()> {
+                let buffer = buffer.mut_moo_ref();
+                let fun: fn(T)->T = $f;
+                for n in 0..LEN {
+                    buffer[n] = fun(i.moo_ref()[n])
+                }
+                Ok(())
+            }
+
+            /// Here buffer is shadowed, so a NullVec can safely be passed.
+            fn backpropagate(
+                &mut self,
+                i: impl StaticVec<T, LEN>,
+                _buffer: &impl StaticVec<T, LEN>,
+                gradient: impl StaticVec<T, LEN>,
+            ) -> Result<[T; LEN]> {
+                let fun: fn(T)->T = $d;
+                let mut buffer = [num!(0); LEN];
+                for n in 0..LEN {
+                    buffer[n] = fun(i.moo_ref()[n]) * gradient.moo_ref()[n]
+                }
+                Ok(buffer)
+            }
+        }
+    };
 }
 
 pub fn sigmoid<T: Float>(x: T) -> T {
@@ -65,9 +97,9 @@ pub fn sigmoid<T: Float>(x: T) -> T {
 }
 
 activation! {
-[f32, f64]: Sigmoid =
+T: Sigmoid =
         |x| sigmoid(x),
-        |x| sigmoid(1. - x),
+        |x| sigmoid(T::_1 - x),
 }
 
 activation! {
@@ -79,11 +111,11 @@ activation! {
 // x \cdot \sigma(x)
 // \sigma(x) * (1 + x * (1 - \sigma(x)))
 activation! {
-[f32, f64]: Swish =
-        |x| x / ((-x).exp() + 1.),
+T: Swish =
+        |x| x / ((-x).exp_() + T::_1),
         |x| {
             let sig = sigmoid(x);
-            sig * (1. + x * (1. - sig))
+            sig * (T::_1 + x * (T::_1 - sig))
         }
 }
 
@@ -94,15 +126,15 @@ activation! {
 }
 
 activation! {
-[f32, f64]: None =
+T: None =
         |x| x,
-        |_| 1.,
+        |_| T::_1,
 }
 
 activation! {
-[f32, f64]: Square =
+T: Square =
         |x| x.powi_(2),
-        |x| x * 2.,
+        |x| x * T::_2,
 }
 
 #[derive(Clone, Copy, Default)]

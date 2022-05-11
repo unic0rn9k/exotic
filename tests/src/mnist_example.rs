@@ -59,20 +59,13 @@ pub fn main() -> Result<()> {
                 .static_slice_unchecked::<{ 28 * 28 }>(idx * 28 * 28)
         };
 
-        let o = net.predict_buffered(i, &mut buffer)?;
-
-        // TODO: Find an optimal way to avoid copying here.
-        *unsafe {
-            buffer
-                .mut_moo_ref()
-                .mut_static_slice_unchecked::<{ 28 * 28 }>(0)
-        } = *i;
+        net.predict(i, &mut buffer)?;
 
         let y = onehot::<f32, 10>(trn_lbl[idx] as usize);
+        let o = &buffer[buffer.len() - 10..buffer.len()];
         let dy = moo![|n| o[n] - y[n]; 10];
 
         let cost = o
-            .moo_ref()
             .iter()
             .zip(y.iter())
             .map(|(o, y)| (o - y).powi_(2))
@@ -85,10 +78,10 @@ pub fn main() -> Result<()> {
 
         cost_sum += cost;
 
-        accuracy[epoch % accuracy.len()] = argmax(o.slice()) == trn_lbl[idx] as usize;
+        accuracy[epoch % accuracy.len()] = argmax(o) == trn_lbl[idx] as usize;
 
         if epoch % 300 == 0 {
-            print!(
+            println!(
                 "\raccuracy: {:.2}% lr: {:.5} cost: {:.4?}",
                 accuracy.iter().map(|n| *n as u8 as f32).sum::<f32>() / accuracy.len() as f32
                     * 100.,
@@ -97,7 +90,7 @@ pub fn main() -> Result<()> {
             );
         }
 
-        net.backpropagate(&buffer, dy)?;
+        net.backpropagate(i, &buffer, dy)?;
     }
 
     Ok(())

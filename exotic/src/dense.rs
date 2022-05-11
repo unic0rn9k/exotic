@@ -31,35 +31,34 @@ where
     }
 }
 
-impl<T: Float, B: Backend<T>, const I_LEN: usize, const O_LEN: usize> LayerTy
-    for DenseLayer<T, B, I_LEN, O_LEN>
-where
-    [(); O_LEN * I_LEN]:,
-{
-    type Gradient = [T; I_LEN];
-    type Output = [T; O_LEN];
-}
-
 macro_rules! impl_dense {
     ($T: ty) => {
         impl<B: Backend<$T> + MatrixMul<$T>, const I_LEN: usize, const O_LEN: usize>
-            Layer<$T, I_LEN, O_LEN> for DenseLayer<$T, B, I_LEN, O_LEN>
+            Layer<$T, I_LEN, O_LEN, O_LEN> for DenseLayer<$T, B, I_LEN, O_LEN>
         where
             [(); O_LEN * I_LEN]:,
         {
-            fn predict(&mut self, i: impl StaticVec<$T, I_LEN>) -> Result<[$T; O_LEN]> {
-                Ok(*self
-                    .weights
+            type Gradient = [$T; I_LEN];
+
+            fn predict(
+                &mut self,
+                i: impl StaticVec<$T, I_LEN>,
+                buffer: &mut impl StaticVec<$T, O_LEN>,
+            ) -> Result<()> {
+                self.weights
                     .moo_ref()
                     .matrix_ref::<B, O_LEN, I_LEN>()
                     .vector_mul(i.moo_ref())
                     .moo_ref()
-                    .add(self.biasies.moo_ref()))
+                    .add_into(self.biasies.moo_ref(), buffer.mut_moo_ref());
+                Ok(())
             }
 
+            /// Here buffer is shadowed, so a NullVec can safely be passed.
             fn backpropagate(
                 &mut self,
                 i: impl StaticVec<$T, I_LEN>,
+                _buffer: &impl StaticVec<$T, O_LEN>,
                 gradient: impl StaticVec<$T, O_LEN>,
             ) -> Result<[$T; I_LEN]> {
                 let mut buffer = [num!(0); I_LEN];

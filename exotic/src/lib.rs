@@ -12,26 +12,21 @@ pub fn random<T: Float>() -> T {
 
 use slas::prelude::*;
 
-/// This trait needs to be implemented to expose needed types to the proc macro, without knowing
-/// the input and output size of the layer.
-pub trait LayerTy {
-    type Gradient;
-    type Output;
-}
-
 /// Trait for Layer in deep learning model.
-pub trait Layer<T: Float, const I_LEN: usize, const O_LEN: usize>: LayerTy
-where
-    <Self as LayerTy>::Gradient: StaticVec<T, I_LEN>,
-    <Self as LayerTy>::Output: StaticVec<T, O_LEN>,
-{
+pub trait Layer<T: Float, const I_LEN: usize, const O_LEN: usize, const BUFFER_LEN: usize> {
     const O_LEN: usize = O_LEN;
     const I_LEN: usize = I_LEN;
+    type Gradient: StaticVec<T, I_LEN>;
 
-    fn predict(&mut self, i: impl StaticVec<T, I_LEN>) -> Result<Self::Output>;
+    fn predict(
+        &mut self,
+        i: impl StaticVec<T, I_LEN>,
+        buffer: &mut impl StaticVec<T, BUFFER_LEN>,
+    ) -> Result<()>;
     fn backpropagate(
         &mut self,
         i: impl StaticVec<T, I_LEN>,
+        buffer: &impl StaticVec<T, BUFFER_LEN>,
         gradient: impl StaticVec<T, O_LEN>,
     ) -> Result<Self::Gradient>;
 }

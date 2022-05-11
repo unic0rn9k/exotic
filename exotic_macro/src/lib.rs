@@ -89,8 +89,7 @@ impl ModelRon {
                     .layers
                     .iter()
                     .map(|(t, _)| t.parse::<TokenStream2>().unwrap());
-                let input_len = self.input_len;
-                quote! {{#(#lt::O_LEN +)* #input_len}}
+                quote! {{#(#lt::O_LEN +)* 0}}
             },
         }
     }
@@ -104,14 +103,10 @@ fn predict(model: &Model) -> TokenStream2 {
     let Model {
         float_type,
         input_len,
-        output_len,
         layers,
         cache_len,
         ..
     } = model;
-
-    let output_type = layers.0.last().unwrap();
-    let output_type = quote! { <#output_type as exotic::LayerTy>::Gradient };
 
     let layer_names = layer_names(layers.0.len());
 
@@ -126,7 +121,7 @@ fn predict(model: &Model) -> TokenStream2 {
         })
         .collect();
 
-    let ret = format_ident!("l{}", layers.0.len() - 1);
+    //let ret = format_ident!("l{}", layers.0.len() - 1);
 
     let buffer_output: Vec<_> = (0..layers.0.len())
         .map(|n| {
@@ -138,7 +133,7 @@ fn predict(model: &Model) -> TokenStream2 {
                     })
                     .collect();
 
-                quote! {{#(#lt +)* #input_len}}
+                quote! {{#(#lt +)* 0}}
             };
 
             let layer = &layers.0[n];
@@ -146,24 +141,16 @@ fn predict(model: &Model) -> TokenStream2 {
         })
         .collect();
 
-    let buffered_ret = format_ident!("l{}", layers.0.len() - 1);
+    //let buffered_ret = format_ident!("l{}", layers.0.len() - 1);
 
     quote! {
-        fn predict(&mut self, i: impl exotic::slas::prelude::StaticVec<#float_type, #input_len>) -> Result<#output_type>{
+        fn predict(&mut self, i: impl exotic::slas::prelude::StaticVec<#float_type, #input_len>, o: &mut impl StaticVec<#float_type, #cache_len>)
+        -> Result<()>{
             #(
-                let #layer_names = self.#layer_names.predict(#layer_inputs)?;
+                self.#layer_names.predict(#layer_inputs, #buffer_output)?;
+                let #layer_names = &*#buffer_output;
             )*
-
-            Ok(#ret)
-        }
-
-        fn predict_buffered(&mut self, i: impl exotic::slas::prelude::StaticVec<#float_type, #input_len>, o: &mut impl StaticVec<#float_type, #cache_len>)
-        -> Result<StaticVecRef::<#float_type, #output_len>>{
-            #(
-                **(#buffer_output) = self.#layer_names.predict(#layer_inputs)?;
-                let #layer_names = #buffer_output;
-            )*
-            Ok(#buffered_ret)
+            Ok(())
         }
     }
 }
@@ -183,6 +170,7 @@ fn backprop(model: &Model) -> TokenStream2 {
     let layer_inputs: Vec<_> = (0..layers.0.len())
         .rev()
         .map(|n| {
+            if n == 0{return quote!{i}}
             let ofset = if n == 0{quote!{0}}else{
                 let lt: Vec<_> = (0..n-1)
                     .map(|n| {
@@ -191,11 +179,11 @@ fn backprop(model: &Model) -> TokenStream2 {
                     })
                     .collect();
 
-                quote! {{#(#lt +)* #input_len }}
+                quote! {{#(#lt +)* 0 }}
             };
 
             let layer = &layers.0[n];
-            quote! { unsafe{ std::mem::transmute::<_, StaticVecRef::<#float_type, {#layer::I_LEN}>>(i.as_ptr().add(#ofset)) } }
+            quote! { unsafe{ std::mem::transmute::<_, StaticVecRef::<#float_type, {#layer::I_LEN}>>(buffer.as_ptr().add(#ofset)) } }
         })
         .collect();
 
@@ -214,9 +202,9 @@ fn backprop(model: &Model) -> TokenStream2 {
     let ret = format_ident!("l0");
 
     quote! {
-        fn backpropagate(&mut self, mut i: impl exotic::slas::prelude::StaticVec<#float_type, #cache_len>, gradient: impl exotic::slas::prelude::StaticVec<#float_type, #output_len>) -> Result<[#float_type; #input_len]>{
+        fn backpropagate(&mut self, mut i: impl exotic::slas::prelude::StaticVec<#float_type, #input_len>, buffer: &impl exotic::slas::prelude::StaticVec<#float_type, #cache_len>, gradient: impl exotic::slas::prelude::StaticVec<#float_type, #output_len>) -> Result<[#float_type; #input_len]>{
             #(
-                let #layer_names = self.#layer_names.backpropagate(#layer_inputs, #layer_deltas)?;
+                let #layer_names = self.#layer_names.backpropagate(#layer_inputs, &unsafe{NullVec::new()}, #layer_deltas)?;
             )*
 
             Ok(#ret)
@@ -239,6 +227,8 @@ pub fn model(input: TokenStream) -> TokenStream {
     let layer_init = model.layers.1.clone();
     let float_type = model.float_type.clone();
     let cache_len = model.cache_len.clone();
+    let input_len = model.input_len;
+    let output_len = model.output_len;
 
     let def = quote! {
         #[derive(#(#derive),*)]
@@ -253,11 +243,14 @@ pub fn model(input: TokenStream) -> TokenStream {
     let backprop = backprop(&model);
 
     let impl_model = quote! {
-        impl #model_name{
+        impl Layer<#float_type, #input_len, #output_len, #cache_len> for #model_name{
+            type Gradient = [#float_type; #input_len];
 
             #predict
             #backprop
+        }
 
+        impl #model_name{
             fn new() -> Self{
                 fn default<T: Default>()->T{T::default()}
                 Self{#(

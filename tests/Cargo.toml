@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-exotic = {path="../exotic"}
-exotic_macro = {path="../exotic_macro"}
-mnist = {optional=true, version="0.5.0", features=["download"]}
+blas-src = { version = "0.8.0", features = ["openblas"] }
+exotic = { path = "../exotic", default-features = false }
+exotic_macro = { path = "../exotic_macro" }
+mnist = { optional = true, version = "0.5.0", features = ["download"] }
 
 [features]
 mnist_example = ["mnist"]

@@ -5,6 +5,7 @@ use std::{fmt::Display, mem::MaybeUninit};
 
 pub use anyhow;
 use anyhow::*;
+pub use rand;
 
 pub fn random<T: Float>() -> T {
     T::from_f64(rand::random())

@@ -1,6 +1,8 @@
+
 #![feature(generic_arg_infer)]
 #[cfg(test)]
 mod test {
+    extern crate blas_src;
     use exotic::prelude::*;
     use exotic_macro::*;
     use slas_backend::*;

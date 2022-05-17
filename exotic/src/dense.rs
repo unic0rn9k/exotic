@@ -31,10 +31,43 @@ where
     }
 }
 
+#[derive(Clone)]
+pub struct DenseHeapLayer<T: Float, B: Backend<T>, const I_LEN: usize, const O_LEN: usize> {
+    pub weights: Vec<T>,
+    pub biasies: Vec<T>,
+    pub lr: T,
+    backend: B,
+}
+
+impl<T: Float + Display, B: Backend<T>, const I_LEN: usize, const O_LEN: usize>
+    DenseHeapLayer<T, B, I_LEN, O_LEN>
+where
+    [(); O_LEN * I_LEN]:,
+{
+    pub fn random(lr: T) -> Self {
+        let xavier = || -> T {
+            (random::<T>() - num!(0.5)) * (T::_2 / (T::from_f64((O_LEN + I_LEN) as f64)))
+        };
+
+        let backend = B::default();
+        let lr = lr;
+        let mut weights = vec![T::_0; O_LEN * I_LEN];
+        let mut biasies = vec![T::_0; O_LEN];
+        weights.iter_mut().for_each(|n| *n = xavier());
+        biasies.iter_mut().for_each(|n| *n = xavier());
+        Self {
+            weights,
+            biasies,
+            lr,
+            backend,
+        }
+    }
+}
+
 macro_rules! impl_dense {
-    ($T: ty) => {
+    ($T:ty: $layer_ty: ident $($w_len: expr)?) => {
         impl<B: Backend<$T> + MatrixMul<$T>, const I_LEN: usize, const O_LEN: usize>
-            Layer<$T, I_LEN, O_LEN, O_LEN> for DenseLayer<$T, B, I_LEN, O_LEN>
+            Layer<$T, I_LEN, O_LEN, O_LEN> for $layer_ty<$T, B, I_LEN, O_LEN>
         where
             [(); O_LEN * I_LEN]:,
         {
@@ -46,7 +79,7 @@ macro_rules! impl_dense {
                 buffer: &mut impl StaticVec<$T, O_LEN>,
             ) -> Result<()> {
                 self.weights
-                    .moo_ref()
+                    .moo_ref::<$($w_len)?>()
                     .matrix_ref::<B, O_LEN, I_LEN>()
                     .vector_mul(i.moo_ref())
                     .moo_ref()
@@ -66,7 +99,7 @@ macro_rules! impl_dense {
                 let input = i.moo_ref();
                 let mut weights = self
                     .weights
-                    .mut_moo_ref()
+                    .mut_moo_ref::<$($w_len)?>()
                     .matrix_mut_ref::<B, O_LEN, I_LEN>();
 
                 //let weights = weights.as_transposed_mut();
@@ -86,5 +119,7 @@ macro_rules! impl_dense {
     };
 }
 
-impl_dense!(f32);
-impl_dense!(f64);
+impl_dense!(f32: DenseLayer);
+impl_dense!(f32: DenseHeapLayer {O_LEN*I_LEN});
+impl_dense!(f64: DenseLayer);
+impl_dense!(f64: DenseHeapLayer {O_LEN*I_LEN});
